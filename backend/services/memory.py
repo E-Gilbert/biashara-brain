@@ -5,7 +5,7 @@ def store_memory(business_id: str, content: str, input_type: str) -> dict:
     result = supabase.table("memories").insert({
         "business_id": business_id,
         "content": content,
-        "input_type": input_type
+        "input_type": input_type.lower()
     }).execute()
     return result.data[0] if result.data else {}
 
