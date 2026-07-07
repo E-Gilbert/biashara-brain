@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
+import { colors, logo } from "../styles"
 
 export default function Processing() {
   const navigate = useNavigate()
@@ -10,7 +11,7 @@ export default function Processing() {
     const extractMemories = async () => {
       const business_id = localStorage.getItem("business_id")
       try {
-        const res = await fetch("http://127.0.0.1:8000/memory/ask", {
+        const res = await fetch("https://biasharabrain.up.railway.app/memory/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -20,7 +21,7 @@ export default function Processing() {
         })
         const data = await res.json()
         localStorage.setItem("extracted_memories", data.answer)
-      } catch (err) {
+      } catch {
         localStorage.setItem("extracted_memories", "[]")
       } finally {
         setTimeout(() => navigate("/confirmed"), 3000)
@@ -32,30 +33,54 @@ export default function Processing() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#0D0D0D",
+      background: colors.bg,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
     }}>
-      <div style={{ textAlign: "center" }}>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        @keyframes breathe {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.05); opacity: 1; }
+        }
+      `}</style>
 
+      <div style={{
+        textAlign: "center",
+        animation: "fadeIn 0.4s ease"
+      }}>
         <div style={{
-          width: "64px", height: "64px", borderRadius: "50%",
-          background: "#1A1A1A", border: "0.5px solid #3A4A2A",
+          width: "72px", height: "72px", borderRadius: "50%",
+          background: colors.surface,
+          border: `0.5px solid ${colors.borderGreen}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 1.5rem"
+          margin: "0 auto 1.5rem",
+          animation: "breathe 2s ease-in-out infinite"
         }}>
-          <span style={{ fontSize: "28px" }}>🧠</span>
+          <span style={{ fontSize: "30px" }}>🧠</span>
         </div>
 
         <h1 style={{
-          color: "#FFFFFF", fontSize: "22px", fontWeight: "500",
-          margin: "0 0 8px", letterSpacing: "-0.02em"
+          color: colors.textPrimary,
+          fontSize: "clamp(18px, 4vw, 22px)",
+          fontWeight: "500", margin: "0 0 8px",
+          letterSpacing: "-0.02em"
         }}>
           Building your business memory...
         </h1>
-        <p style={{ color: "#6B6B6B", fontSize: "14px", margin: "0 0 2rem" }}>
+        <p style={{
+          color: colors.textSecondary, fontSize: "14px",
+          margin: "0 0 2rem"
+        }}>
           Reading, structuring, remembering.
         </p>
 
@@ -63,19 +88,11 @@ export default function Processing() {
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               width: "6px", height: "6px", borderRadius: "50%",
-              background: i === 0 ? "#A8C080" : "#2A2A2A",
+              background: colors.accent,
               animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`
             }} />
           ))}
         </div>
-
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1); }
-          }
-        `}</style>
-
       </div>
     </div>
   )

@@ -7,6 +7,18 @@ router = APIRouter()
 @router.post("/", response_model=BusinessResponse)
 def create_business(business: BusinessCreate):
     supabase = get_supabase()
+
+    # Check if business already exists with same name and owner
+    existing = supabase.table("businesses")\
+        .select("*")\
+        .eq("name", business.name)\
+        .eq("owner_name", business.owner_name)\
+        .execute()
+
+    if existing.data:
+        return existing.data[0]
+
+    # Create new if not found
     result = supabase.table("businesses").insert({
         "name": business.name,
         "type": business.type,
