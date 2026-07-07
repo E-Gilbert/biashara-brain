@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { colors, button, input, logo } from "../styles"
+import { motion } from "framer-motion"
+import { colors, button, input, logo, card } from "../styles"
 
 function Field({ label, placeholder, value, onChange, focused, onFocus, onBlur }) {
   return (
@@ -8,7 +9,7 @@ function Field({ label, placeholder, value, onChange, focused, onFocus, onBlur }
       <label style={{
         display: "block",
         color: focused ? colors.accent : colors.textSecondary,
-        fontSize: "12px", marginBottom: "6px", letterSpacing: "0.02em",
+        fontSize: "13px", marginBottom: "8px", letterSpacing: "0.01em",
         transition: "color 0.2s"
       }}>
         {label}
@@ -23,9 +24,10 @@ function Field({ label, placeholder, value, onChange, focused, onFocus, onBlur }
         style={{
           ...input,
           border: focused
-            ? `0.5px solid ${colors.borderGreen}`
-            : `0.5px solid ${colors.border}`,
-          transition: "border-color 0.2s"
+            ? `1px solid ${colors.borderGreen}`
+            : `1px solid ${colors.border}`,
+          boxShadow: focused ? "0 0 24px rgba(139,175,110,0.12)" : "none",
+          transition: "border-color 0.2s, box-shadow 0.2s"
         }}
       />
     </div>
@@ -69,36 +71,52 @@ export default function Onboarding() {
   }
 
   return (
-    <div style={{
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      style={{
       minHeight: "100vh",
       background: colors.bg,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      padding: "1.5rem",
+      padding: "2rem",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      animation: "fadeIn 0.4s ease"
+      position: "relative"
     }}>
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           20%, 60% { transform: translateX(-6px); }
           40%, 80% { transform: translateX(6px); }
         }
-        .btn-primary:hover { background: #222222 !important; }
-        .btn-primary:active { transform: scale(0.98); }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: "400px" }}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.08, duration: 0.5 }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "radial-gradient(60% 45% at 70% 0%, rgba(139,175,110,0.12) 0%, rgba(8,8,8,0) 100%)"
+        }}
+      />
 
-        <div style={{
+      <div style={{ width: "100%", maxWidth: "520px", zIndex: 1 }}>
+
+        <div
+          onClick={() => navigate("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === "Enter" && navigate("/")}
+          style={{
           display: "flex", alignItems: "center", gap: "10px",
-          marginBottom: "3rem",
-          animation: "fadeIn 0.5s ease 0.1s both"
+          marginBottom: "2.4rem",
+          cursor: "pointer",
+          width: "fit-content"
         }}>
           <div style={logo.wrapper}>
             <span style={{ fontSize: "16px" }}>🧠</span>
@@ -106,24 +124,22 @@ export default function Onboarding() {
           <span style={logo.text}>Biashara Brain</span>
         </div>
 
-        <div style={{ animation: "fadeIn 0.5s ease 0.2s both" }}>
+        <div style={{ ...card }}>
           <h1 style={{
             color: colors.textPrimary,
-            fontSize: "clamp(20px, 5vw, 26px)",
-            fontWeight: "500", margin: "0 0 8px",
-            letterSpacing: "-0.02em", lineHeight: "1.3"
+            fontSize: "clamp(30px, 6vw, 42px)",
+            fontWeight: "700", margin: "0 0 10px",
+            letterSpacing: "-0.035em", lineHeight: "1.1"
           }}>
             Your business memory<br />starts here.
           </h1>
           <p style={{
-            color: colors.textSecondary, fontSize: "14px",
-            margin: "0 0 2.5rem", lineHeight: "1.6"
+            color: colors.textSecondary, fontSize: "16px",
+            margin: "0 0 2rem", lineHeight: "1.6"
           }}>
             Tell us about your business to get started.
           </p>
-        </div>
 
-        <div style={{ animation: "fadeIn 0.5s ease 0.3s both" }}>
           <Field
             label="Business name"
             placeholder="e.g. MEA Tech"
@@ -154,7 +170,7 @@ export default function Onboarding() {
 
           {error && (
             <p style={{
-              color: "#7A4A4A", fontSize: "13px",
+              color: "#B97878", fontSize: "14px",
               marginBottom: "16px",
               animation: "shake 0.4s ease"
             }}>
@@ -162,27 +178,32 @@ export default function Onboarding() {
             </p>
           )}
 
-          <button
-            className="btn-primary"
+          <motion.button
             onClick={handleSubmit}
             disabled={loading}
+            whileHover={{
+              scale: 1.01,
+              borderColor: "rgba(139,175,110,0.7)",
+              boxShadow: "0 0 32px rgba(139,175,110,0.17)"
+            }}
+            whileTap={{ scale: 0.98 }}
             style={{
               ...button,
-              transition: "background 0.2s, transform 0.1s",
+              transition: "all 0.25s ease",
               opacity: loading ? 0.7 : 1
             }}
           >
             {loading ? "Setting up..." : "Continue →"}
-          </button>
+          </motion.button>
 
           <p style={{
-            color: colors.textMuted, fontSize: "12px",
-            textAlign: "center", marginTop: "1.5rem"
+            color: colors.textSecondary, fontSize: "13px",
+            textAlign: "center", marginTop: "1.2rem"
           }}>
             Your data stays private. Always.
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

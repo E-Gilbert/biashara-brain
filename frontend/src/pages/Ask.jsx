@@ -1,5 +1,7 @@
-import { useState } from "react"
-import { colors, logo } from "../styles"
+import { useEffect, useRef, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { useNavigate } from "react-router-dom"
+import { colors, logo, input, card } from "../styles"
 
 const SUGGESTED = [
   "What projects am I currently working on?",
@@ -9,6 +11,7 @@ const SUGGESTED = [
 ]
 
 export default function Ask() {
+  const navigate = useNavigate()
   const [question, setQuestion] = useState("")
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
@@ -20,9 +23,32 @@ export default function Ask() {
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   const [waText, setWaText] = useState("")
   const [waLoading, setWaLoading] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [recorderSupported, setRecorderSupported] = useState(false)
+  const mediaRecorderRef = useRef(null)
+  const mediaChunksRef = useRef([])
+  const mediaStreamRef = useRef(null)
 
   const business_id = localStorage.getItem("business_id")
   const business_name = localStorage.getItem("business_name")
+
+  useEffect(() => {
+    const canRecord = typeof window !== "undefined" &&
+      !!window.MediaRecorder &&
+      !!navigator.mediaDevices &&
+      !!navigator.mediaDevices.getUserMedia
+    setRecorderSupported(canRecord)
+
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop()
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
 
   const isQuestion = (text) => {
     const t = text.trim().toLowerCase()
@@ -82,11 +108,10 @@ export default function Ask() {
     }
   }
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0]
+  const uploadMemoryFile = async (file, label) => {
     if (!file) return
 
-    setMessages(prev => [...prev, { role: "user", text: `📎 ${file.name}` }])
+    setMessages(prev => [...prev, { role: "user", text: label || `📎 ${file.name}` }])
     setUploading(true)
 
     const formData = new FormData()
@@ -109,9 +134,67 @@ export default function Ask() {
       }])
     } finally {
       setUploading(false)
-      e.target.value = ""
     }
   }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0]
+    await uploadMemoryFile(file)
+    e.target.value = ""
+  }
+
+  const startRecording = async () => {
+    if (!recorderSupported || isRecording || uploading) return
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+      mediaChunksRef.current = []
+      setRecordingSeconds(0)
+      setIsRecording(true)
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          mediaChunksRef.current.push(event.data)
+        }
+      }
+
+      recorder.onstop = async () => {
+        const blob = new Blob(mediaChunksRef.current, { type: "audio/webm" })
+        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" })
+        setIsRecording(false)
+        setRecordingSeconds(0)
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop())
+          mediaStreamRef.current = null
+        }
+        await uploadMemoryFile(file, "🎙️ Voice note uploaded")
+      }
+
+      recorder.start()
+    } catch {
+      setMessages(prev => [...prev, {
+        role: "agent",
+        text: "Microphone access was blocked. Please allow mic access and try again."
+      }])
+      setIsRecording(false)
+    }
+  }
+
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") return
+    mediaRecorderRef.current.stop()
+  }
+
+  useEffect(() => {
+    if (!isRecording) return
+    const intervalId = setInterval(() => {
+      setRecordingSeconds(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(intervalId)
+  }, [isRecording])
 
   const fetchPulse = async () => {
     setPulseLoading(true)
@@ -156,7 +239,12 @@ export default function Ask() {
   }
 
   return (
-    <div style={{
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      style={{
       minHeight: "100vh",
       background: colors.bg,
       display: "flex",
@@ -164,92 +252,107 @@ export default function Ask() {
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
     }}>
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+        .glass {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          backdrop-filter: blur(16px);
         }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .msg { animation: slideUp 0.3s ease forwards; }
-        .suggest-btn:hover { border-color: ${colors.borderGreen} !important; color: ${colors.accent} !important; }
-        .send-btn:hover { background: #222 !important; }
-        .send-btn:active { transform: scale(0.95); }
-        .upload-btn:hover { border-color: ${colors.borderGreen} !important; }
-        .wa-btn:hover { background: #222 !important; }
       `}</style>
 
       <div style={{
-        padding: "1rem 1.5rem",
-        borderBottom: `0.5px solid #1A1A1A`,
+        padding: "1rem 1.5rem 0.9rem",
+        borderBottom: `1px solid ${colors.border}`,
         display: "flex", alignItems: "center", gap: "10px",
-        animation: "fadeIn 0.4s ease"
+        flexWrap: "wrap",
+        rowGap: "10px",
+        background: "rgba(8,8,8,0.8)",
+        backdropFilter: "blur(14px)"
       }}>
-        <div style={logo.wrapper}>
-          <span style={{ fontSize: "14px" }}>🧠</span>
+        <div
+          onClick={() => navigate("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === "Enter" && navigate("/")}
+          style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+        >
+          <div style={logo.wrapper}>
+            <span style={{ fontSize: "14px" }}>🧠</span>
+          </div>
+          <span style={{ color: colors.textPrimary, fontSize: "16px", fontWeight: "650" }}>
+            Biashara Brain
+          </span>
         </div>
-        <span style={{ color: colors.textPrimary, fontSize: "14px", fontWeight: "500" }}>
-          Biashara Brain
-        </span>
-        <span style={{ color: colors.textMuted, fontSize: "14px", margin: "0 2px" }}>—</span>
-        <span style={{ color: colors.textSecondary, fontSize: "14px" }}>{business_name}</span>
+        <span style={{ color: colors.textMuted, fontSize: "14px", margin: "0 2px" }}>-</span>
+        <span style={{ color: colors.textSecondary, fontSize: "15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>{business_name}</span>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-          <button
-            className="wa-btn"
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <motion.button
             onClick={() => setShowWhatsApp(true)}
+            whileHover={{ scale: 1.02, borderColor: "rgba(139,175,110,0.6)" }}
+            whileTap={{ scale: 0.98 }}
             style={{
               background: colors.surface,
-              border: `0.5px solid ${colors.border}`,
-              borderRadius: "20px", padding: "6px 12px",
-              color: colors.textSecondary, fontSize: "12px",
+              border: `1px solid ${colors.border}`,
+              borderRadius: "999px", padding: "8px 14px",
+              color: colors.textSecondary, fontSize: "13px",
               cursor: "pointer", display: "flex", alignItems: "center", gap: "6px",
-              transition: "background 0.2s"
+              transition: "all 0.2s ease"
             }}
           >
             📱 Forward
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={fetchPulse}
-            style={{
-              background: colors.surface,
-              border: `0.5px solid ${colors.borderGreen}`,
-              borderRadius: "20px", padding: "6px 12px",
-              color: colors.accent, fontSize: "12px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: "6px",
-              transition: "background 0.2s"
+            whileHover={{
+              scale: 1.02,
+              borderColor: "rgba(139,175,110,0.7)",
+              boxShadow: "0 0 24px rgba(139,175,110,0.16)"
             }}
-            onMouseEnter={e => e.currentTarget.style.background = "#222"}
-            onMouseLeave={e => e.currentTarget.style.background = colors.surface}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              background: "rgba(139,175,110,0.1)",
+              border: `1px solid rgba(139,175,110,0.45)`,
+              borderRadius: "999px", padding: "8px 14px",
+              color: colors.accent, fontSize: "13px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "6px",
+              transition: "all 0.2s ease"
+            }}
           >
-            ⚡ Pulse
-          </button>
+            ⚡ Business Pulse
+          </motion.button>
         </div>
       </div>
 
+      <AnimatePresence>
       {showWhatsApp && (
-        <div style={{
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
           position: "fixed", inset: 0,
-          background: "rgba(0,0,0,0.7)",
+          background: "rgba(0,0,0,0.75)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "1.5rem", zIndex: 50,
-          animation: "fadeIn 0.2s ease"
+          backdropFilter: "blur(4px)"
         }}>
-          <div style={{
-            background: "#0D0D0D",
-            border: `0.5px solid ${colors.border}`,
-            borderRadius: "12px",
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            style={{
+            ...card,
             padding: "1.5rem",
             width: "100%", maxWidth: "440px"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}>
               <span style={{ fontSize: "18px" }}>📱</span>
-              <p style={{ color: colors.textPrimary, fontSize: "15px", fontWeight: "500", margin: 0 }}>
+              <p style={{ color: colors.textPrimary, fontSize: "18px", fontWeight: "650", margin: 0, letterSpacing: "-0.02em" }}>
                 Forward a WhatsApp conversation
               </p>
             </div>
-            <p style={{ color: colors.textSecondary, fontSize: "13px", margin: "0 0 1rem", lineHeight: "1.6" }}>
+            <p style={{ color: colors.textSecondary, fontSize: "14px", margin: "0 0 1rem", lineHeight: "1.6" }}>
               Paste a conversation with a customer or supplier. I'll read it and remember what matters — no manual typing needed.
             </p>
             <textarea
@@ -258,54 +361,68 @@ export default function Ask() {
               placeholder={`Customer: Hi, is the order ready?\nMe: Yes, ready for pickup tomorrow\nCustomer: Great, I'll send the balance of 2000 then`}
               rows={6}
               style={{
-                width: "100%", background: colors.surface,
-                border: `0.5px solid ${colors.border}`, borderRadius: "8px",
-                padding: "12px", color: colors.textPrimary, fontSize: "13px",
+                ...input,
+                width: "100%",
+                borderRadius: "14px",
+                padding: "13px 14px", color: colors.textPrimary, fontSize: "14px",
                 outline: "none", resize: "none", lineHeight: "1.6",
                 boxSizing: "border-box", marginBottom: "1rem",
                 fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
               }}
             />
             <div style={{ display: "flex", gap: "8px" }}>
-              <button
+              <motion.button
                 onClick={() => { setShowWhatsApp(false); setWaText("") }}
+                whileHover={{ scale: 1.01, borderColor: "rgba(139,175,110,0.5)" }}
+                whileTap={{ scale: 0.98 }}
                 style={{
                   flex: 1, background: "transparent",
-                  border: `0.5px solid ${colors.border}`,
-                  borderRadius: "8px", padding: "10px",
-                  color: colors.textSecondary, fontSize: "13px",
-                  cursor: "pointer"
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "12px", padding: "11px",
+                  color: colors.textSecondary, fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
                 }}
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={submitWhatsApp}
                 disabled={waLoading}
+                whileHover={{ scale: 1.01, boxShadow: "0 0 24px rgba(139,175,110,0.16)" }}
+                whileTap={{ scale: 0.98 }}
                 style={{
-                  flex: 1, background: colors.surface,
-                  border: `0.5px solid ${colors.borderGreen}`,
-                  borderRadius: "8px", padding: "10px",
-                  color: colors.accent, fontSize: "13px",
-                  fontWeight: "500", cursor: "pointer",
+                  flex: 1, background: "rgba(139,175,110,0.1)",
+                  border: `1px solid rgba(139,175,110,0.45)`,
+                  borderRadius: "12px", padding: "11px",
+                  color: colors.accent, fontSize: "14px",
+                  fontWeight: "600", cursor: "pointer",
+                  transition: "all 0.2s ease",
                   opacity: waLoading ? 0.7 : 1
                 }}
               >
                 {waLoading ? "Reading..." : "Remember this"}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {showPulse && (
-        <div style={{
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          style={{
           margin: "1rem 1.5rem 0",
           background: colors.surface2,
-          border: `0.5px solid ${colors.borderGreen}`,
-          borderRadius: "8px",
+          border: `1px solid rgba(139,175,110,0.35)`,
+          borderRadius: "14px",
           padding: "1.25rem",
-          animation: "fadeIn 0.4s ease",
+          backdropFilter: "blur(16px)",
+          boxShadow: "0 0 30px rgba(139,175,110,0.12)",
           position: "relative"
         }}>
           <button
@@ -321,7 +438,7 @@ export default function Ask() {
           </button>
           <p style={{
             color: colors.accent, fontSize: "12px",
-            fontWeight: "500", margin: "0 0 10px",
+            fontWeight: "650", margin: "0 0 10px",
             letterSpacing: "0.02em", textTransform: "uppercase"
           }}>
             🧠 Business Pulse
@@ -339,66 +456,85 @@ export default function Ask() {
               {pulse}
             </p>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <div style={{
-        flex: 1, overflowY: "auto", padding: "1.5rem",
+        flex: 1, overflowY: "auto", padding: "1.2rem 1rem",
         display: "flex", flexDirection: "column", gap: "12px"
       }}>
 
         {messages.length === 0 && (
-          <div style={{
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
             margin: "auto", textAlign: "center",
-            maxWidth: "380px", padding: "1rem",
-            animation: "fadeIn 0.5s ease"
+            width: "min(96vw, 760px)", padding: "1.25rem",
+            ...card
           }}>
             <div style={{
               width: "48px", height: "48px", borderRadius: "50%",
               background: colors.surface,
-              border: `0.5px solid ${colors.borderGreen}`,
+              border: `1px solid rgba(139,175,110,0.45)`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 1rem"
+              margin: "0 auto 1rem",
+              boxShadow: "0 0 24px rgba(139,175,110,0.16)"
             }}>
               <span style={{ fontSize: "22px" }}>🧠</span>
             </div>
             <p style={{
               color: colors.textPrimary,
-              fontSize: "clamp(16px, 4vw, 18px)",
-              fontWeight: "500", margin: "0 0 8px", letterSpacing: "-0.02em"
+              fontSize: "clamp(22px, 5vw, 30px)",
+              fontWeight: "700", margin: "0 0 8px", letterSpacing: "-0.03em"
             }}>
               What would you like to know?
             </p>
             <p style={{
-              color: colors.textSecondary, fontSize: "13px",
+              color: colors.textSecondary, fontSize: "14px",
               margin: "0 0 2rem", lineHeight: "1.6"
             }}>
               Ask anything about your business — or type, upload, or forward a chat to remember it.
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "10px"
+            }}>
               {SUGGESTED.map((s, i) => (
-                <button
+                <motion.button
                   key={i}
-                  className="suggest-btn"
                   onClick={() => ask(s)}
+                  whileHover={{
+                    scale: 1.01,
+                    borderColor: "rgba(139,175,110,0.6)",
+                    color: colors.accent
+                  }}
+                  whileTap={{ scale: 0.985 }}
                   style={{
                     background: colors.surface,
-                    border: `0.5px solid ${colors.border}`,
-                    borderRadius: "8px", padding: "10px 14px",
-                    color: colors.textSecondary, fontSize: "13px",
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: "12px", padding: "12px 14px",
+                    color: colors.textSecondary, fontSize: "14px",
                     cursor: "pointer", textAlign: "left",
-                    transition: "border-color 0.2s, color 0.2s"
+                    transition: "all 0.2s ease"
                   }}
                 >
                   {s}
-                </button>
+                </motion.button>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className="msg" style={{
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
             display: "flex", flexDirection: "column",
             alignItems: msg.role === "user" ? "flex-end" : "flex-start"
           }}>
@@ -411,50 +547,63 @@ export default function Ask() {
               {msg.role === "user" ? "You" : "Biashara Brain"}
             </p>
             <div style={{
-              maxWidth: "75%",
-              background: msg.role === "user" ? colors.surface : colors.surface2,
+              maxWidth: "min(88vw, 680px)",
+              background: msg.role === "user" ? "rgba(139,175,110,0.08)" : colors.surface2,
               border: msg.role === "user"
-                ? `0.5px solid ${colors.border}`
-                : `0.5px solid #1E2A18`,
-              borderRadius: "8px", padding: "10px 14px"
+                ? `1px solid rgba(139,175,110,0.35)`
+                : `1px solid ${colors.border}`,
+              borderRadius: "14px", padding: "12px 14px",
+              backdropFilter: "blur(10px)"
             }}>
               <p style={{
-                color: msg.role === "user" ? "#CCCCCC" : "#BBBBBB",
-                fontSize: "14px", margin: 0, lineHeight: "1.7"
+                color: msg.role === "user" ? "#DFDFDF" : "#C5C5C5",
+                fontSize: "15px", margin: 0, lineHeight: "1.7"
               }}>
                 {msg.text}
               </p>
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {(loading || uploading) && (
-          <div className="msg" style={{ display: "flex", alignItems: "flex-start" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ display: "flex", alignItems: "flex-start" }}
+          >
             <div style={{
               background: colors.surface2,
-              border: `0.5px solid #1E2A18`,
-              borderRadius: "8px", padding: "10px 14px"
+              border: `1px solid ${colors.border}`,
+              borderRadius: "14px", padding: "10px 14px"
             }}>
               <p style={{ color: colors.accentDim, fontSize: "14px", margin: 0 }}>
                 {uploading ? "Uploading..." : "Thinking..."}
               </p>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
       <div style={{
-        padding: "1rem 1.5rem",
-        borderTop: `0.5px solid #1A1A1A`,
+        padding: "1rem",
+        borderTop: `1px solid ${colors.border}`,
         display: "flex", flexDirection: "column", gap: "8px"
       }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <label className="upload-btn" style={{
+        <div style={{
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          flexWrap: "wrap"
+        }}>
+          <motion.label
+            whileHover={{ scale: 1.02, borderColor: "rgba(139,175,110,0.6)" }}
+            whileTap={{ scale: 0.98 }}
+            style={{
             background: colors.surface,
-            border: `0.5px solid ${colors.border}`,
-            borderRadius: "8px", padding: "11px 14px",
+            border: `1px solid ${colors.border}`,
+            borderRadius: "12px", padding: "11px 14px",
             cursor: "pointer", display: "flex", alignItems: "center",
-            transition: "border-color 0.2s"
+            transition: "all 0.2s ease"
           }}>
             <span style={{ fontSize: "16px" }}>📎</span>
             <input
@@ -464,7 +613,28 @@ export default function Ask() {
               style={{ display: "none" }}
               disabled={uploading}
             />
-          </label>
+          </motion.label>
+
+          <motion.button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={!recorderSupported || uploading}
+            whileHover={{ scale: 1.02, borderColor: "rgba(139,175,110,0.7)" }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              background: isRecording ? "rgba(185,120,120,0.16)" : colors.surface,
+              border: `1px solid ${isRecording ? "rgba(185,120,120,0.55)" : colors.border}`,
+              borderRadius: "12px",
+              padding: "11px 13px",
+              cursor: recorderSupported ? "pointer" : "not-allowed",
+              opacity: recorderSupported ? 1 : 0.45,
+              color: isRecording ? "#DFA6A6" : colors.textSecondary,
+              transition: "all 0.2s ease",
+              minWidth: "54px"
+            }}
+            title={recorderSupported ? (isRecording ? "Stop recording" : "Record voice note") : "Voice recording not supported"}
+          >
+            {isRecording ? "■" : "🎙️"}
+          </motion.button>
 
           <input
             type="text"
@@ -476,38 +646,56 @@ export default function Ask() {
             placeholder={uploading ? "Uploading..." : "Ask anything or type something to remember..."}
             disabled={uploading}
             style={{
+              ...input,
               flex: 1, background: colors.surface,
+              minWidth: "220px",
               border: inputFocused
-                ? `0.5px solid ${colors.borderGreen}`
-                : `0.5px solid ${colors.border}`,
-              borderRadius: "8px", padding: "11px 14px",
-              color: colors.textPrimary, fontSize: "14px",
-              outline: "none", transition: "border-color 0.2s",
+                ? `1px solid ${colors.borderGreen}`
+                : `1px solid ${colors.border}`,
+              borderRadius: "12px", padding: "11px 14px",
+              color: colors.textPrimary, fontSize: "15px",
+              outline: "none", transition: "all 0.2s ease",
+              boxShadow: inputFocused ? "0 0 24px rgba(139,175,110,0.15)" : "none",
               fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
             }}
           />
-          <button
-            className="send-btn"
+          <motion.button
             onClick={() => ask()}
             disabled={uploading}
+            whileHover={{
+              scale: 1.03,
+              borderColor: "rgba(139,175,110,0.8)",
+              boxShadow: "0 0 26px rgba(139,175,110,0.2)"
+            }}
+            whileTap={{ scale: 0.95 }}
             style={{
-              background: colors.surface,
-              border: `0.5px solid ${colors.borderGreen}`,
-              borderRadius: "8px", padding: "11px 18px",
+              background: "rgba(139,175,110,0.1)",
+              border: `1px solid rgba(139,175,110,0.55)`,
+              borderRadius: "12px", padding: "11px 18px",
               color: colors.accent, fontSize: "16px",
-              cursor: "pointer", transition: "background 0.2s, transform 0.1s"
+              cursor: "pointer", transition: "all 0.2s ease"
             }}
           >
             →
-          </button>
+          </motion.button>
         </div>
+        {isRecording && (
+          <p style={{
+            color: "#DFA6A6",
+            fontSize: "12px",
+            textAlign: "center",
+            margin: 0
+          }}>
+            Recording voice note... {String(Math.floor(recordingSeconds / 60)).padStart(2, "0")}:{String(recordingSeconds % 60).padStart(2, "0")}
+          </p>
+        )}
         <p style={{
-          color: colors.textMuted, fontSize: "11px",
+          color: colors.textMuted, fontSize: "12px",
           textAlign: "center", margin: 0
         }}>
-          Ask, type to remember, attach a file 📎, or forward a chat 📱
+          Ask, type to remember, upload 📎, record 🎙️, or forward a chat 📱
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }

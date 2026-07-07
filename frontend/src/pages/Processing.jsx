@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { colors, logo } from "../styles"
+import { motion } from "framer-motion"
+import { colors, card, logo } from "../styles"
 
 export default function Processing() {
   const navigate = useNavigate()
@@ -31,7 +32,12 @@ export default function Processing() {
   }, [])
 
   return (
-    <div style={{
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      style={{
       minHeight: "100vh",
       background: colors.bg,
       display: "flex",
@@ -40,10 +46,6 @@ export default function Processing() {
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
     }}>
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes pulse {
           0%, 100% { opacity: 0.3; transform: scale(0.8); }
           50% { opacity: 1; transform: scale(1.2); }
@@ -56,29 +58,54 @@ export default function Processing() {
 
       <div style={{
         textAlign: "center",
-        animation: "fadeIn 0.4s ease"
+        ...card,
+        width: "min(92vw, 560px)",
+        padding: "2.2rem"
       }}>
-        <div style={{
-          width: "72px", height: "72px", borderRadius: "50%",
-          background: colors.surface,
-          border: `0.5px solid ${colors.borderGreen}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 1.5rem",
-          animation: "breathe 2s ease-in-out infinite"
-        }}>
-          <span style={{ fontSize: "30px" }}>🧠</span>
+        <div
+          onClick={() => navigate("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === "Enter" && navigate("/")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            width: "fit-content",
+            margin: "0 auto 1.5rem",
+            cursor: "pointer"
+          }}
+        >
+          <div style={logo.wrapper}>
+            <span style={{ fontSize: "16px" }}>🧠</span>
+          </div>
+          <span style={logo.text}>Biashara Brain</span>
         </div>
+
+        <motion.div
+          animate={{ scale: [1, 1.08, 1], opacity: [0.78, 1, 0.78] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+          width: "84px", height: "84px", borderRadius: "50%",
+          background: "rgba(139,175,110,0.1)",
+          border: `1px solid rgba(139,175,110,0.5)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 1.8rem",
+          boxShadow: "0 0 45px rgba(139,175,110,0.18)"
+        }}>
+          <span style={{ fontSize: "36px" }}>🧠</span>
+        </motion.div>
 
         <h1 style={{
           color: colors.textPrimary,
-          fontSize: "clamp(18px, 4vw, 22px)",
-          fontWeight: "500", margin: "0 0 8px",
-          letterSpacing: "-0.02em"
+          fontSize: "clamp(28px, 5vw, 36px)",
+          fontWeight: "700", margin: "0 0 10px",
+          letterSpacing: "-0.03em"
         }}>
           Building your business memory...
         </h1>
         <p style={{
-          color: colors.textSecondary, fontSize: "14px",
+          color: colors.textSecondary, fontSize: "16px",
           margin: "0 0 2rem"
         }}>
           Reading, structuring, remembering.
@@ -94,6 +121,6 @@ export default function Processing() {
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

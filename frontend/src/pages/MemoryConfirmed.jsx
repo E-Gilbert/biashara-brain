@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { colors, button, logo } from "../styles"
+import { motion } from "framer-motion"
+import { colors, button, logo, card } from "../styles"
 
 export default function MemoryConfirmed() {
   const navigate = useNavigate()
@@ -25,34 +26,47 @@ export default function MemoryConfirmed() {
   }, [])
 
   return (
-    <div style={{
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      style={{
       minHeight: "100vh",
       background: colors.bg,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      padding: "1.5rem",
+      padding: "2rem",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      animation: "fadeIn 0.4s ease"
+      position: "relative"
     }}>
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(-10px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        .btn-primary:hover { background: #222222 !important; }
-        .btn-primary:active { transform: scale(0.98); }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: "480px" }}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.08, duration: 0.5 }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "radial-gradient(60% 45% at 70% 5%, rgba(139,175,110,0.1) 0%, rgba(8,8,8,0) 100%)"
+        }}
+      />
 
-        <div style={{
+      <div style={{ width: "100%", maxWidth: "720px", zIndex: 1 }}>
+
+        <div
+          onClick={() => navigate("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === "Enter" && navigate("/")}
+          style={{
           display: "flex", alignItems: "center", gap: "10px",
-          marginBottom: "3rem", animation: "fadeIn 0.5s ease 0.1s both"
+          marginBottom: "2rem",
+          cursor: "pointer",
+          width: "fit-content"
         }}>
           <div style={logo.wrapper}>
             <span style={{ fontSize: "16px" }}>🧠</span>
@@ -60,68 +74,89 @@ export default function MemoryConfirmed() {
           <span style={logo.text}>Biashara Brain</span>
         </div>
 
-        <div style={{ animation: "fadeIn 0.5s ease 0.2s both" }}>
+        <div style={{ ...card }}>
           <h1 style={{
             color: colors.textPrimary,
-            fontSize: "clamp(20px, 5vw, 26px)",
-            fontWeight: "500", margin: "0 0 8px",
-            letterSpacing: "-0.02em", lineHeight: "1.3"
+            fontSize: "clamp(30px, 6vw, 42px)",
+            fontWeight: "700", margin: "0 0 10px",
+            letterSpacing: "-0.035em", lineHeight: "1.1"
           }}>
             I've remembered:
           </h1>
           <p style={{
-            color: colors.textSecondary, fontSize: "14px",
+            color: colors.textSecondary, fontSize: "16px",
             margin: "0 0 2rem", lineHeight: "1.6"
           }}>
             Here's what I now know about your business.
           </p>
-        </div>
 
-        <div style={{
-          background: colors.surface,
-          border: `0.5px solid ${colors.border}`,
-          borderRadius: "8px", padding: "1.25rem",
-          marginBottom: "2rem"
+          <div style={{
+          background: colors.surface2,
+          border: `1px solid ${colors.border}`,
+          borderRadius: "14px", padding: "1.25rem",
+          marginBottom: "1.6rem",
+          backdropFilter: "blur(10px)"
         }}>
           {memories.length === 0 ? (
             <p style={{ color: colors.textSecondary, fontSize: "14px", margin: 0 }}>
               Processing your memories...
             </p>
           ) : (
-            memories.map((mem, i) => (
-              <div key={i} style={{
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: {},
+                show: {
+                  transition: {
+                    staggerChildren: 0.18
+                  }
+                }
+              }}
+            >
+              {memories.map((mem, i) => (
+              <motion.div key={i}
+                variants={{
+                  hidden: { opacity: 0, x: -10 },
+                  show: { opacity: visible.includes(i) ? 1 : 0, x: visible.includes(i) ? 0 : -10 }
+                }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                style={{
                 display: "flex", alignItems: "flex-start", gap: "10px",
                 marginBottom: i < memories.length - 1 ? "14px" : 0,
-                opacity: visible.includes(i) ? 1 : 0,
-                animation: visible.includes(i) ? "slideIn 0.4s ease forwards" : "none",
-                transition: "opacity 0.3s"
               }}>
                 <span style={{
-                  color: colors.accent, fontSize: "14px",
+                  color: colors.accent, fontSize: "15px",
                   marginTop: "1px", flexShrink: 0
                 }}>✓</span>
                 <p style={{
-                  color: "#CCCCCC", fontSize: "14px",
+                  color: "#D9D9D9", fontSize: "15px",
                   margin: 0, lineHeight: "1.6"
                 }}>{mem}</p>
-              </div>
-            ))
+              </motion.div>
+            ))}
+            </motion.div>
           )}
-        </div>
+          </div>
 
-        <button
-          className="btn-primary"
+        <motion.button
           onClick={() => navigate("/ask")}
+          whileHover={{
+            scale: 1.01,
+            borderColor: "rgba(139,175,110,0.7)",
+            boxShadow: "0 0 32px rgba(139,175,110,0.17)"
+          }}
+          whileTap={{ scale: 0.98 }}
           style={{
             ...button,
-            animation: "fadeIn 0.5s ease 0.4s both",
-            transition: "background 0.2s, transform 0.1s"
+            transition: "all 0.25s ease"
           }}
         >
           Start asking questions →
-        </button>
+        </motion.button>
+        </div>
 
       </div>
-    </div>
+    </motion.div>
   )
 }

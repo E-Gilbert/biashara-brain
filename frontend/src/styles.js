@@ -1,14 +1,14 @@
 export const colors = {
-  bg: "#0D0D0D",
-  surface: "#1A1A1A",
-  surface2: "#111111",
-  border: "#2A2A2A",
-  borderGreen: "#3A4A2A",
-  textPrimary: "#FFFFFF",
-  textSecondary: "#6B6B6B",
-  textMuted: "#3A3A3A",
-  accent: "#A8C080",
-  accentDim: "#4A5C3A",
+  bg: "#080808",
+  surface: "rgba(255,255,255,0.04)",
+  surface2: "rgba(255,255,255,0.02)",
+  border: "rgba(255,255,255,0.08)",
+  borderGreen: "#8BAF6E",
+  textPrimary: "#F0F0F0",
+  textSecondary: "#666666",
+  textMuted: "#444444",
+  accent: "#8BAF6E",
+  accentDim: "rgba(139,175,110,0.7)",
 }
 
 export const layout = {
@@ -29,45 +29,49 @@ export const container = {
 
 export const card = {
   background: colors.surface,
-  border: `0.5px solid ${colors.border}`,
-  borderRadius: "8px",
-  padding: "1.25rem",
+  border: `1px solid ${colors.border}`,
+  borderRadius: "18px",
+  padding: "1.5rem",
+  backdropFilter: "blur(18px)",
+  boxShadow: "0 0 40px rgba(139,175,110,0.08)",
 }
 
 export const input = {
   width: "100%",
   background: colors.surface,
-  border: `0.5px solid ${colors.border}`,
-  borderRadius: "8px",
-  padding: "11px 14px",
+  border: `1px solid ${colors.border}`,
+  borderRadius: "14px",
+  padding: "14px 16px",
   color: colors.textPrimary,
-  fontSize: "14px",
+  fontSize: "15px",
   outline: "none",
   boxSizing: "border-box",
+  backdropFilter: "blur(14px)",
   fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }
 
 export const button = {
   width: "100%",
-  background: colors.surface,
-  border: `0.5px solid ${colors.borderGreen}`,
-  borderRadius: "8px",
-  padding: "12px",
+  background: "rgba(139,175,110,0.12)",
+  border: `1px solid rgba(139,175,110,0.4)`,
+  borderRadius: "14px",
+  padding: "13px 16px",
   color: colors.accent,
-  fontSize: "14px",
-  fontWeight: "500",
+  fontSize: "15px",
+  fontWeight: "600",
   cursor: "pointer",
   letterSpacing: "-0.01em",
+  boxShadow: "0 0 24px rgba(139,175,110,0.1)",
 }
 
 export const logo = {
   wrapper: {
-    width: "32px", height: "32px", borderRadius: "8px",
-    background: "#1C1C1C", border: "0.5px solid #2A2A2A",
+    width: "38px", height: "38px", borderRadius: "12px",
+    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
     display: "flex", alignItems: "center", justifyContent: "center"
   },
   text: {
-    color: "#FFFFFF", fontSize: "15px",
-    fontWeight: "500", letterSpacing: "-0.01em"
+    color: "#F0F0F0", fontSize: "16px",
+    fontWeight: "650", letterSpacing: "-0.02em"
   }
 }
